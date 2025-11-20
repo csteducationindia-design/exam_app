@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin/Teacher Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Tangerine:wght@700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        .tab-button.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .certificate-body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; color: #333; }
+        .certificate-container { width: 800px; height: 580px; padding: 20px; text-align: center; border: 10px solid #1e3a8a; background-color: white; position: relative; }
+        .certificate-container:before { content: ''; position: absolute; top: 5px; left: 5px; right: 5px; bottom: 5px; border: 2px solid #a5b4fc; }
+        .certificate-header h1 { font-size: 32px; font-weight: 700; color: #1e3a8a; }
+        .certificate-recipient { font-family: 'Tangerine', cursive; font-size: 64px; color: #1e40af; border-bottom: 2px solid #6b7280; display: inline-block; padding-bottom: 5px; margin: 20px 0; }
+        .certificate-seal { position: absolute; bottom: 40px; right: 40px; width: 120px; height: 120px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .certificate-modal-content, .certificate-modal-content * { visibility: visible; }
+            #certificate-modal { position: absolute; left: 0; top: 0; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+            .certificate-buttons { display: none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div id="auth-section">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Teacher Login</h1>
+            <p id="auth-message" class="text-center mb-4"></p>
+            <div id="login-form" class="max-w-md mx-auto space-y-4">
+                <input type="text" id="teacher-id-login" placeholder="Teacher ID" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                <input type="password" id="password-login" placeholder="Password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                <button id="login-button" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">Login</button>
+                <div class="text-center mt-4">
+                    <p class="text-sm text-gray-600">Don't have an account? <a href="#" id="show-register" class="text-blue-600 hover:underline">Register Here</a></p>
+                </div>
+            </div>
+
+            <div id="register-form" class="max-w-md mx-auto space-y-4 hidden">
+                <h2 class="text-2xl font-bold text-center mt-8 text-gray-800">Teacher Registration</h2>
+                <input type="text" id="teacher-id-register" placeholder="Choose a Teacher ID" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                <input type="password" id="password-register" placeholder="Choose a Password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                <button id="register-button" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md">Register</button>
+                <div class="text-center mt-4">
+                    <p class="text-sm text-gray-600">Already have an account? <a href="#" id="show-login" class="text-blue-600 hover:underline">Login Here</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-portal" class="hidden">
+            <header class="flex justify-between items-center pb-4 border-b border-gray-200">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Admin/Teacher Portal</h1>
+                    <p class="text-sm text-gray-500 mt-1">Logged in as: <span id="logged-in-teacher-id" class="font-medium text-gray-700"></span></p>
+                </div>
+                <button id="logout-button" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors shadow-md">Logout</button>
+            </header>
+
+            <nav class="mt-4 border-b border-gray-200">
+                <ul class="flex text-center text-gray-600">
+                    <li class="mr-4"><button class="tab-button active px-4 py-2" data-tab="manage-students">Manage Students</button></li>
+                    <li class="mr-4"><button class="tab-button px-4 py-2" data-tab="manage-exams">Manage Exams</button></li>
+                    <li class="mr-4"><button class="tab-button px-4 py-2" data-tab="view-results">View Results</button></li>
+                    <li class="mr-4"><button class="tab-button px-4 py-2" data-tab="reports">Reports</button></li>
+                </ul>
+            </nav>
+
+            <main class="mt-8">
+                <div id="manage-students" class="tab-content active space-y-8">
+                    <h2 class="text-2xl font-bold text-gray-800">Manage Students</h2>
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div class="bg-gray-50 p-6 rounded-xl shadow-inner space-y-4">
+                            <h3 class="text-xl font-semibold text-gray-700">Create Single Student</h3>
+                            <input type="text" id="single-student-id" placeholder="Student ID" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="text" id="single-student-name" placeholder="Student Name" class="w-full px-4 py-2 border rounded-lg">
+                            <button id="create-student-button" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">Create Student</button>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-xl shadow-inner space-y-4">
+                            <h3 class="text-xl font-semibold text-gray-700">Bulk Upload Students (CSV)</h3>
+                            <input type="file" id="bulk-student-file" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0"/>
+                            <button id="bulk-upload-student-button" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 shadow-md">Upload Students</button>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold text-gray-700">Registered Students</h3>
+                        <div id="student-list-container" class="mt-4"><table class="min-w-full bg-white rounded-xl shadow-sm"><thead><tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal"><th class="py-3 px-6 text-left">Student ID</th><th class="py-3 px-6 text-left">Student Name</th><th class="py-3 px-6 text-left">Actions</th></tr></thead><tbody id="student-list-table" class="text-gray-600 text-sm font-light"></tbody></table></div>
+                    </div>
+                </div>
+
+                <div id="manage-exams" class="tab-content hidden space-y-8">
+                    <h2 class="text-2xl font-bold text-gray-800">Manage Exams</h2>
+                    <div class="bg-gray-50 p-6 rounded-xl shadow-inner space-y-4">
+                        <h3 class="text-xl font-semibold text-gray-700">Exam Settings</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <input type="text" id="exam-id-input" placeholder="Exam ID (e.g., science-201)" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="text" id="exam-title-input" placeholder="Exam Title" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="text" id="school-name-input" placeholder="School Name" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="number" id="duration-input" placeholder="Duration (minutes)" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="number" id="attempts-input" placeholder="Allowed Attempts" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="number" id="passing-percentage-input" placeholder="Passing Percentage (%)" class="w-full px-4 py-2 border rounded-lg">
+                            <div class="md:col-span-2 flex items-center">
+                                <input type="checkbox" id="enable-analysis-report-input" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="enable-analysis-report-input" class="ml-2 block text-sm font-medium text-gray-700">Enable Analysis Report for Students</label>
+                            </div>
+                        </div>
+                        <button id="save-exam-settings-button" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">Save Exam Settings</button>
+                    </div>
+
+                    <div class="bg-gray-50 p-6 rounded-xl shadow-inner space-y-4">
+                         <h3 class="text-xl font-semibold text-gray-700">Manage Questions</h3>
+                         <div class="flex space-x-2">
+                             <select id="exam-select" class="flex-grow px-4 py-2 border rounded-lg"></select>
+                             <button id="new-question-button" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">New Question</button>
+                         </div>
+                         <div id="question-form" class="space-y-4 hidden">
+                            <input type="hidden" id="original-question-text">
+                            <input type="text" id="question-text-input" placeholder="Question Text" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="text" id="correct-option-input" placeholder="Correct Option (e.g., A, B, C or T, F)" class="w-full px-4 py-2 border rounded-lg">
+                            <div class="space-y-2" id="options-container">
+                                <input type="text" id="option-a-input" placeholder="Option A" class="w-full px-4 py-2 border rounded-lg">
+                                <input type="text" id="option-b-input" placeholder="Option B" class="w-full px-4 py-2 border rounded-lg">
+                                <input type="text" id="option-c-input" placeholder="Option C (optional)" class="w-full px-4 py-2 border rounded-lg">
+                                <input type="text" id="option-d-input" placeholder="Option D (optional)" class="w-full px-4 py-2 border rounded-lg">
+                            </div>
+                            <input type="text" id="image-url-input" placeholder="Image URL (optional)" class="w-full px-4 py-2 border rounded-lg">
+                            <div id="image-preview" class="hidden">
+                                <img id="image-preview-img" class="w-64 h-auto rounded-lg shadow-md mt-2" alt="Image preview">
+                            </div>
+                            <button id="save-question-button" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 shadow-md">Save Question</button>
+                        </div>
+                        <div id="question-list-container" class="mt-4 hidden">
+                             <h4 class="text-lg font-semibold text-gray-600 mb-2">Questions</h4>
+                             <table class="min-w-full bg-white rounded-xl shadow-sm">
+                                 <thead>
+                                     <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                         <th class="py-3 px-6 text-left">Question Text</th>
+                                         <th class="py-3 px-6 text-left">Correct Option</th>
+                                         <th class="py-3 px-6 text-left">Actions</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="question-list-table" class="text-gray-600 text-sm font-light"></tbody>
+                             </table>
+                        </div>
+                    </div>
+                     <div class="bg-gray-50 p-6 rounded-xl shadow-inner space-y-4">
+                         <h3 class="text-xl font-semibold text-gray-700">Bulk Upload Questions (CSV)</h3>
+                         <p class="text-sm text-gray-500">File format: `question_text`, `correct_option`, `option_A`, `option_B`, `option_C`, `option_D`, `image_url`</p>
+                         <input type="file" id="bulk-question-file" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0"/>
+                         <button id="bulk-upload-question-button" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">Upload Questions</button>
+                    </div>
+                </div>
+
+                <div id="view-results" class="tab-content hidden space-y-8">
+                    <h2 class="text-2xl font-bold text-gray-800">View Results</h2>
+                    <table class="min-w-full bg-white rounded-xl shadow-sm">
+                        <thead>
+                            <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">No</th><th class="py-3 px-6 text-left">Exam ID</th><th class="py-3 px-6 text-left">Student Name</th>
+                                <th class="py-3 px-6 text-left">Score</th><th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table" class="text-gray-600 text-sm font-light"></tbody>
+                    </table>
+                </div>
+                <div id="reports" class="tab-content hidden space-y-8">
+                    <h2 class="text-2xl font-bold text-gray-800">Reports</h2>
+                    <div class="flex space-x-4">
+                        <input type="text" id="report-search-input" placeholder="Search by Student or Exam" class="flex-grow px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <button id="print-report-button" class="px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-lg hover:bg-gray-400 shadow-md">Print Report</button>
+                        <button id="pdf-report-button" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 shadow-md">Generate PDF</button>
+                        <button id="backup-data-button" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 shadow-md">Backup Data</button>
+                    </div>
+                    <table id="reports-table" class="min-w-full bg-white rounded-xl shadow-sm mt-4">
+                        <thead>
+                            <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Result ID</th><th class="py-3 px-6 text-left">Exam ID</th><th class="py-3 px-6 text-left">Student ID</th>
+                                <th class="py-3 px-6 text-left">Student Name</th><th class="py-3 px-6 text-left">Score</th><th class="py-3 px-6 text-left">Submission Time</th>
+                                <th class="py-3 px-6 text-left">Teacher ID</th><th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table-body" class="text-gray-600 text-sm font-light"></tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="certificate-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4">
+        <div class="flex flex-col items-center">
+            <div id="certificate-content" class="certificate-container certificate-modal-content">
+                <div class="certificate-body">
+                    <div class="certificate-header"><h1 id="cert-school-name"></h1></div>
+                    <p class="mt-8 text-xl font-medium text-gray-600">This is to certify that</p>
+                    <p id="cert-student-name" class="certificate-recipient"></p>
+                    <p class="text-xl font-medium text-gray-600">has successfully completed the exam</p>
+                    <p id="cert-exam-title" class="text-3xl font-bold text-gray-800 mt-2"></p>
+                    <div class="mt-6">
+                        <span id="cert-score" class="text-lg font-semibold text-green-700"></span> - <span id="cert-pass-fail" class="text-lg font-bold"></span>
+                    </div>
+                    <div class="mt-12 flex justify-between items-end">
+                        <div class="text-left">
+                            <p class="text-sm border-t-2 border-gray-500 pt-1">Date Issued</p>
+                            <p id="cert-date" class="font-semibold"></p>
+                        </div>
+                        <div class="text-right"><p class="text-sm border-t-2 border-gray-500 pt-1">Authorized Signature</p></div>
+                    </div>
+                    <img src="https://www.svgrepo.com/show/443793/seal-of-quality.svg" class="certificate-seal" alt="Seal">
+                </div>
+            </div>
+            <div class="mt-6 flex space-x-4 certificate-buttons">
+                <button onclick="window.print()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">Print Certificate</button>
+                <button id="close-modal-button" class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 shadow-md">Close</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const app = {
+        teacherId: localStorage.getItem('teacherId') || null,
+        reportsData: [],
+        currentExamId: null,
+
+        init: () => {
+            document.getElementById('show-register').addEventListener('click', (e) => { e.preventDefault(); app.showForm('register'); });
+            document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); app.showForm('login'); });
+            document.getElementById('login-button').addEventListener('click', app.login);
+            document.getElementById('register-button').addEventListener('click', app.register);
+            document.getElementById('logout-button').addEventListener('click', app.logout);
+            document.getElementById('create-student-button').addEventListener('click', app.createSingleStudent);
+            document.getElementById('bulk-upload-student-button').addEventListener('click', app.bulkUploadStudents);
+            document.getElementById('save-exam-settings-button').addEventListener('click', app.saveExamSettings);
+            document.getElementById('save-question-button').addEventListener('click', app.saveSingleQuestion);
+            document.getElementById('bulk-upload-question-button').addEventListener('click', app.bulkUploadQuestions);
+            document.getElementById('print-report-button').addEventListener('click', () => window.print());
+            document.getElementById('pdf-report-button').addEventListener('click', app.generatePdfReport);
+            document.getElementById('backup-data-button').addEventListener('click', app.backupData);
+            document.getElementById('report-search-input').addEventListener('input', app.filterReports);
+            document.getElementById('exam-select').addEventListener('change', app.handleExamSelection);
+            document.getElementById('new-question-button').addEventListener('click', app.resetQuestionForm);
+            document.getElementById('image-url-input').addEventListener('input', app.showImagePreview);
+
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', (e) => app.switchTab(e.target.dataset.tab));
+            });
+            
+            document.getElementById('close-modal-button').addEventListener('click', () => {
+                document.getElementById('certificate-modal').classList.add('hidden');
+            });
+
+            if (app.teacherId) {
+                app.showMainPortal();
+            } else {
+                app.showAuthSection();
+            }
+        },
+
+        showMessage: (message, color) => {
+            const el = document.getElementById('auth-message');
+            el.textContent = message;
+            el.className = `text-center my-4 font-medium text-${color}-600`;
+        },
+        
+        showAuthSection: () => {
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('main-portal').classList.add('hidden');
+            app.teacherId = null;
+            localStorage.removeItem('teacherId');
+        },
+
+        showMainPortal: () => {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-portal').classList.remove('hidden');
+            document.getElementById('logged-in-teacher-id').textContent = app.teacherId;
+            app.switchTab('manage-students');
+        },
+        
+        showForm: (form) => {
+            document.getElementById('login-form').classList.toggle('hidden', form === 'register');
+            document.getElementById('register-form').classList.toggle('hidden', form === 'login');
+        },
+
+        login: async () => {
+            const teacherId = document.getElementById('teacher-id-login').value;
+            const password = document.getElementById('password-login').value;
+            const response = await fetch('/api/login/teacher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: teacherId, password: password }) });
+            const result = await response.json();
+            if (response.ok) {
+                app.teacherId = teacherId;
+                localStorage.setItem('teacherId', teacherId);
+                app.showMainPortal();
+            } else { app.showMessage(result.message, 'red'); }
+        },
+        
+        register: async () => {
+            const teacherId = document.getElementById('teacher-id-register').value;
+            const password = document.getElementById('password-register').value;
+            const response = await fetch('/api/register/teacher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: teacherId, password: password }) });
+            const result = await response.json();
+            if (response.ok) {
+                app.showMessage('Registration successful! Please log in.', 'green');
+                app.showForm('login');
+            } else { app.showMessage(result.message, 'red'); }
+        },
+
+        logout: () => { app.showAuthSection(); },
+
+        switchTab: (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            if (tabId === 'manage-students') app.loadStudents();
+            if (tabId === 'manage-exams') app.loadExams();
+            if (tabId === 'view-results') app.loadResults();
+            if (tabId === 'reports') app.loadReports();
+        },
+
+        loadStudents: async () => {
+            const tableBody = document.getElementById('student-list-table');
+            tableBody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>';
+            const response = await fetch(`/api/students/${app.teacherId}`);
+            tableBody.innerHTML = '';
+            if (response.ok) {
+                const students = await response.json();
+                students.forEach(student => { tableBody.innerHTML += `<tr class="border-b"><td class="py-3 px-6">${student.student_id}</td><td class="py-3 px-6">${student.student_name}</td><td class="py-3 px-6"><button onclick="app.editStudent('${student.student_id}', '${student.student_name}')" class="text-blue-600 hover:underline mr-2">Edit</button><button onclick="app.deleteStudent('${student.student_id}')" class="text-red-600 hover:underline">Delete</button></td></tr>`; });
+            }
+        },
+
+        createSingleStudent: async () => {
+            const studentId = document.getElementById('single-student-id').value;
+            const studentName = document.getElementById('single-student-name').value;
+            const response = await fetch('/api/student/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: app.teacherId, student_id: studentId, student_name: studentName }) });
+            const result = await response.json();
+            alert(result.message);
+            if (response.ok) { document.getElementById('single-student-id').value = ''; document.getElementById('single-student-name').value = ''; app.loadStudents(); }
+        },
+
+        bulkUploadStudents: async () => {
+            const fileInput = document.getElementById('bulk-student-file');
+            if (!fileInput.files.length) return alert('Please select a CSV file.');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const lines = e.target.result.split(/\r?\n/).filter(line => line.trim());
+                if (lines.length <= 1) return alert('CSV file is empty or has only a header.');
+                const students = lines.slice(1).map(line => {
+                    const [id, name] = line.split(',');
+                    return { student_id: id?.trim(), student_name: name?.trim() };
+                }).filter(s => s.student_id && s.student_name);
+
+                const response = await fetch('/api/students/bulk-upload-csv', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ teacher_id: app.teacherId, students: students })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (response.ok) app.loadStudents();
+            };
+            reader.readAsText(file);
+        },
+        deleteStudent: async (studentId) => {
+             if (confirm(`Are you sure you want to delete student ID: ${studentId}?`)) {
+                const response = await fetch('/api/student/delete', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: app.teacherId, student_id: studentId }) });
+                const result = await response.json();
+                alert(result.message);
+                if (response.ok) app.loadStudents();
+            }
+        },
+        
+        editStudent: (id, name) => {
+             document.getElementById('single-student-id').value = id;
+             document.getElementById('single-student-name').value = name;
+             const btn = document.getElementById('create-student-button');
+             btn.textContent = 'Update Student';
+             btn.onclick = () => app.updateStudent(id);
+        },
+
+        updateStudent: async (oldId) => {
+            const newId = document.getElementById('single-student-id').value;
+            const newName = document.getElementById('single-student-name').value;
+            const response = await fetch('/api/student/update', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teacher_id: app.teacherId, old_student_id: oldId, new_student_id: newId, student_name: newName })
+            });
+            const result = await response.json();
+            alert(result.message);
+            if(response.ok) {
+                document.getElementById('single-student-id').value = '';
+                document.getElementById('single-student-name').value = '';
+                const btn = document.getElementById('create-student-button');
+                btn.textContent = 'Create Student';
+                btn.onclick = app.createSingleStudent;
+                app.loadStudents();
+            }
+        },
+        
+        loadExams: async () => {
+            const examSelect = document.getElementById('exam-select');
+            examSelect.innerHTML = '<option value="">-- Select Existing Exam --</option>';
+            const response = await fetch(`/api/exams/by-teacher/${app.teacherId}`);
+            if (response.ok) {
+                const exams = await response.json();
+                exams.forEach(exam => {
+                    if (exam.exam_title && !exam.exam_title.includes('placeholder')) {
+                        const option = document.createElement('option');
+                        option.value = exam.exam_id;
+                        option.textContent = `${exam.exam_title} (${exam.exam_id})`;
+                        examSelect.appendChild(option);
+                    }
+                });
+            }
+        },
+        
+        handleExamSelection: () => {
+            const examId = document.getElementById('exam-select').value;
+            app.currentExamId = examId;
+            app.resetQuestionForm();
+            if (examId) {
+                document.getElementById('question-form').classList.remove('hidden');
+                document.getElementById('question-list-container').classList.remove('hidden');
+                app.loadQuestionsForExam(examId);
+            } else {
+                document.getElementById('question-form').classList.add('hidden');
+                document.getElementById('question-list-container').classList.add('hidden');
+            }
+        },
+
+        loadQuestionsForExam: async (examId) => {
+             const tableBody = document.getElementById('question-list-table');
+             tableBody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>';
+             const response = await fetch(`/api/questions/by-exam/${examId}`);
+             tableBody.innerHTML = '';
+             if (response.ok) {
+                 const questions = await response.json();
+                 questions.forEach(q => {
+                     const row = document.createElement('tr');
+                     row.className = 'border-b';
+                     row.innerHTML = `<td class="py-3 px-6">${q.question_text.substring(0, 50)}...</td><td class="py-3 px-6">${q.correct_option}</td><td class="py-3 px-6"><button onclick="app.editQuestion('${q.question_text.replace(/'/g, "\\'")}')" class="text-blue-600 hover:underline mr-2">Edit</button><button onclick="app.deleteQuestion('${q.question_text.replace(/'/g, "\\'")}')" class="text-red-600 hover:underline">Delete</button></td>`;
+                     tableBody.appendChild(row);
+                 });
+             }
+        },
+
+        editQuestion: async (questionText) => {
+            const response = await fetch(`/api/questions/by-exam/${app.currentExamId}`);
+            const questions = await response.json();
+            const question = questions.find(q => q.question_text === questionText);
+            if (question) {
+                document.getElementById('original-question-text').value = question.question_text;
+                document.getElementById('question-text-input').value = question.question_text;
+                document.getElementById('correct-option-input').value = question.correct_option;
+                document.getElementById('option-a-input').value = question.options.A || '';
+                document.getElementById('option-b-input').value = question.options.B || '';
+                document.getElementById('option-c-input').value = question.options.C || '';
+                document.getElementById('option-d-input').value = question.options.D || '';
+                document.getElementById('image-url-input').value = question.image_url || '';
+                app.showImagePreview();
+            }
+        },
+
+        deleteQuestion: async (questionText) => {
+             if (confirm(`Are you sure you want to delete this question?`)) {
+                const response = await fetch('/api/question/delete', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: app.teacherId, exam_id: app.currentExamId, question_text: questionText }) });
+                const result = await response.json();
+                alert(result.message);
+                if(response.ok) app.loadQuestionsForExam(app.currentExamId);
+            }
+        },
+
+        resetQuestionForm: () => {
+             document.getElementById('original-question-text').value = '';
+             document.getElementById('question-text-input').value = '';
+             document.getElementById('correct-option-input').value = '';
+             document.getElementById('option-a-input').value = '';
+             document.getElementById('option-b-input').value = '';
+             document.getElementById('option-c-input').value = '';
+             document.getElementById('option-d-input').value = '';
+             document.getElementById('image-url-input').value = '';
+             app.showImagePreview();
+        },
+
+        showImagePreview: () => {
+            const imageUrl = document.getElementById('image-url-input').value;
+            const imgPreview = document.getElementById('image-preview');
+            const imgElement = document.getElementById('image-preview-img');
+            if (imageUrl) {
+                imgElement.src = imageUrl;
+                imgPreview.classList.remove('hidden');
+            } else {
+                imgPreview.classList.add('hidden');
+                imgElement.src = '';
+            }
+        },
+
+        saveExamSettings: async () => {
+            const payload = {
+                teacher_id: app.teacherId,
+                exam_id: document.getElementById('exam-id-input').value,
+                exam_title: document.getElementById('exam-title-input').value,
+                school_name: document.getElementById('school-name-input').value,
+                duration: parseInt(document.getElementById('duration-input').value),
+                attempts: parseInt(document.getElementById('attempts-input').value),
+                passing_percentage: parseFloat(document.getElementById('passing-percentage-input').value),
+                enable_analysis_report: document.getElementById('enable-analysis-report-input').checked
+            };
+            const response = await fetch('/api/exams/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const result = await response.json();
+            alert(result.message);
+            if (response.ok) app.loadExams();
+        },
+
+        saveSingleQuestion: async () => {
+             const examId = document.getElementById('exam-select').value || document.getElementById('exam-id-input').value;
+             const originalQuestionText = document.getElementById('original-question-text').value;
+             if (!examId) return alert('Please select or create an exam first.');
+             const options = {};
+             if (document.getElementById('option-a-input').value) options.A = document.getElementById('option-a-input').value;
+             if (document.getElementById('option-b-input').value) options.B = document.getElementById('option-b-input').value;
+             if (document.getElementById('option-c-input').value) options.C = document.getElementById('option-c-input').value;
+             if (document.getElementById('option-d-input').value) options.D = document.getElementById('option-d-input').value;
+             
+             const payload = {
+                 teacher_id: app.teacherId,
+                 exam_id: examId,
+                 question_text: document.getElementById('question-text-input').value,
+                 original_question_text: originalQuestionText, // Send this for updates
+                 correct_option: document.getElementById('correct-option-input').value.toUpperCase(),
+                 options: options,
+                 image_url: document.getElementById('image-url-input').value
+             };
+             const response = await fetch('/api/questions/single-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+             const result = await response.json();
+             alert(result.message);
+             if (response.ok) {
+                 app.resetQuestionForm();
+                 app.loadQuestionsForExam(examId);
+             }
+        },
+
+        bulkUploadQuestions: async () => {
+            const examId = document.getElementById('exam-select').value || document.getElementById('exam-id-input').value;
+            if (!examId) return alert('Please select or create an exam before uploading questions.');
+            const fileInput = document.getElementById('bulk-question-file');
+            if (!fileInput.files.length) return alert('Please select a CSV file.');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const lines = e.target.result.split(/\r?\n/).filter(line => line.trim());
+                if (lines.length <= 1) return alert('CSV file is empty or has only a header.');
+                const questions = lines.slice(1).map(line => {
+                    const parts = line.split(',');
+                    const options = {};
+                    if(parts[2]?.trim()) options.A = parts[2]?.trim();
+                    if(parts[3]?.trim()) options.B = parts[3]?.trim();
+                    if(parts[4]?.trim()) options.C = parts[4]?.trim();
+                    if(parts[5]?.trim()) options.D = parts[5]?.trim();
+                    return { question_text: parts[0]?.trim(), correct_option: parts[1]?.trim().toUpperCase(), options: options, image_url: parts[6]?.trim() };
+                }).filter(q => q.question_text && q.correct_option);
+                const response = await fetch('/api/questions/bulk-upload-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacher_id: app.teacherId, exam_id: examId, questions: questions }) });
+                const result = await response.json();
+                alert(result.message);
+                if (response.ok) app.loadQuestionsForExam(examId);
+            };
+            reader.readAsText(file);
+        },
+
+        loadResults: async () => {
+             const tableBody = document.getElementById('results-table');
+             tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-4">Loading...</td></tr>';
+             const [resultsRes, questionsRes] = await Promise.all([fetch('/api/results'), fetch('/api/all-questions')]);
+             tableBody.innerHTML = '';
+             if (resultsRes.ok && questionsRes.ok) {
+                 const results = await resultsRes.json();
+                 const questions = await questionsRes.json();
+                 const examMeta = questions.reduce((acc, q) => { if (q.question_text !== 'placeholder') { if (!acc[q.exam_id]) { acc[q.exam_id] = { title: q.exam_title, total: 0 }; } acc[q.exam_id].total++; } return acc; }, {});
+                 results.filter(r => r.teacher_id === app.teacherId).forEach((result, index) => {
+                     const meta = examMeta[result.exam_id] || { title: result.exam_id, total: 'N/A' };
+                     tableBody.innerHTML += `<tr class="border-b"><td class="py-3 px-6">${index + 1}</td><td class="py-3 px-6">${meta.title}</td><td class="py-3 px-6">${result.student_name}</td><td class="py-3 px-6">${result.score} / ${meta.total}</td><td class="py-3 px-6"><button onclick="app.showCertificate('${result.result_id}')" class="text-blue-600 hover:underline">View Certificate</button></td></tr>`;
+                 });
+             }
+        },
+
+        loadReports: async () => {
+            const response = await fetch('/api/results');
+            if (response.ok) {
+                const results = await response.json();
+                app.reportsData = results.filter(r => r.teacher_id === app.teacherId);
+                app.displayReports(app.reportsData);
+            }
+        },
+
+        displayReports: (reports) => {
+            const tableBody = document.getElementById('reports-table-body');
+            tableBody.innerHTML = '';
+            reports.forEach(result => {
+                tableBody.innerHTML += `<tr class="border-b"><td class="py-3 px-6">${result.result_id.substring(0,8)}...</td><td class="py-3 px-6">${result.exam_id}</td><td class="py-3 px-6">${result.student_id}</td><td class="py-3 px-6">${result.student_name}</td><td class="py-3 px-6">${result.score}</td><td class="py-3 px-6">${new Date(result.submission_time).toLocaleString()}</td><td class="py-3 px-6">${result.teacher_id}</td><td class="py-3 px-6"><button onclick="app.showCertificate('${result.result_id}')" class="text-blue-600 hover:underline">View</button></td></tr>`;
+            });
+        },
+        
+        filterReports: () => {
+            const query = document.getElementById('report-search-input').value.toLowerCase();
+            const filteredData = app.reportsData.filter(r => r.student_name.toLowerCase().includes(query) || r.exam_id.toLowerCase().includes(query));
+            app.displayReports(filteredData);
+        },
+
+        generatePdfReport: () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.autoTable({ html: '#reports-table' });
+            doc.save('exam-report.pdf');
+        },
+        
+        backupData: async () => {
+            const response = await fetch('/api/results');
+            if(response.ok) {
+                const data = await response.json();
+                const myData = data.filter(r => r.teacher_id === app.teacherId);
+                const blob = new Blob([JSON.stringify(myData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup-${app.teacherId}-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        },
+
+        showCertificate: async (resultId) => {
+            const [resultsRes, questionsRes] = await Promise.all([fetch('/api/results'), fetch('/api/all-questions')]);
+            if (resultsRes.ok && questionsRes.ok) {
+                const allResults = await resultsRes.json();
+                const allQuestions = await questionsRes.json();
+                const result = allResults.find(r => r.result_id === resultId);
+                const examQuestions = allQuestions.filter(q => q.exam_id === result.exam_id && q.question_text !== 'placeholder');
+                if (examQuestions.length > 0) {
+                    const totalQuestions = examQuestions.length;
+                    const percentage = totalQuestions > 0 ? (result.score / totalQuestions) * 100 : 0;
+                    const passed = percentage >= examQuestions[0].passing_percentage;
+                    document.getElementById('cert-school-name').textContent = examQuestions[0].school_name;
+                    document.getElementById('cert-student-name').textContent = result.student_name;
+                    document.getElementById('cert-exam-title').textContent = examQuestions[0].exam_title;
+                    document.getElementById('cert-score').textContent = `Score: ${result.score} / ${totalQuestions} (${percentage.toFixed(0)}%)`;
+                    document.getElementById('cert-date').textContent = new Date(result.submission_time).toLocaleDateString();
+                    const passFailMessage = document.getElementById('cert-pass-fail');
+                    passFailMessage.textContent = passed ? 'Passed' : 'Failed';
+                    passFailMessage.style.color = passed ? '#15803d' : '#be123c';
+                    const modal = document.getElementById('certificate-modal');
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                } else { alert('Could not find exam details to generate certificate.'); }
+            }
+        },
+    };
+    
+    document.addEventListener('DOMContentLoaded', app.init);
+</script>
+</body>
+</html>
