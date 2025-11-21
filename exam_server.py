@@ -8,7 +8,14 @@ from datetime import datetime, timedelta
 
 # Determine the directory of the script to make file paths reliable
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.path.join(SCRIPT_DIR, 'exam_data.db')
+
+# Create a 'data' folder if it doesn't exist
+DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+# Save the database INSIDE the data folder
+DATABASE_PATH = os.path.join(DATA_DIR, 'exam_data.db')
 STATIC_DIR = os.path.join(SCRIPT_DIR, 'static')
 
 app = Flask(__name__, static_url_path='/static', static_folder=STATIC_DIR)
