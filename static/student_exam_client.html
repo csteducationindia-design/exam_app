@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Exam Portal</title>
+    
+    <!-- PWA Links -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2995/2995620.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -22,7 +28,6 @@
         }
 
         .custom-option input[type="radio"] { display: none; }
-        /* FIX: Reduced vertical padding to prevent options from being pushed out of view */
         .custom-option label { background-color: #374151; border: 2px solid #4b5563; transition: all 0.2s ease-in-out; padding: 0.75rem 1rem; }
         .custom-option input[type="radio"]:checked + label {
             background-color: #3b82f6; border-color: #60a5fa;
@@ -62,6 +67,11 @@
             <input type="text" id="student-id-input" placeholder="Enter Your Student ID" class="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-white">
             <input type="text" id="exam-id-input" placeholder="Enter Exam ID" class="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-white">
             <button id="start-exam-button" class="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/50 transform hover:-translate-y-0.5">Start Exam</button>
+            
+            <!-- Install App Button -->
+            <button id="install-pwa-button" class="hidden w-full px-4 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-md mt-4">
+                Install App 📱
+            </button>
         </div>
 
         <div id="exam-section" class="hidden">
@@ -156,11 +166,40 @@
             </div>
         </div>
         
-        <div id="certificate-section" class="hidden">
-             </div>
+        <div id="certificate-section" class="hidden"></div>
     </div>
 
 <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('SW registered!', reg))
+          .catch(err => console.log('SW failed', err));
+      });
+    }
+
+    // Install Prompt Logic
+    let deferredPrompt;
+    const installButton = document.getElementById('install-pwa-button');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installButton.classList.remove('hidden');
+    });
+
+    installButton.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                installButton.classList.add('hidden');
+            }
+            deferredPrompt = null;
+        }
+    });
+
     const app = {
         studentId: null, examId: null, teacherId: null, examData: null,
         currentQuestionIndex: 0, answers: {}, questionStatus: {},
@@ -305,7 +344,6 @@
                 app.startTimer(); 
                 app.startProgressSaver(); 
             } catch (error) { 
-                // Display a more prominent error message in case of failure.
                 document.getElementById('main-title').textContent = 'Error!';
                 document.getElementById('message-display').textContent = error.message || 'An unexpected error occurred. Please contact your teacher.';
                 document.getElementById('message-display').className = 'text-lg text-center font-bold text-red-500 my-4';
