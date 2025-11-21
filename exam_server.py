@@ -645,7 +645,7 @@ def delete_question():
             return jsonify({'message': 'Question not found or you are not authorized to delete.'}), 404
     finally:
         conn.close()
-
+init_db()
 if __name__ == '__main__':
     if not os.path.exists(DATABASE_PATH):
         print("Database not found. Initializing a new database...")
