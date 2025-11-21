@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # Determine the directory of the script to make file paths reliable
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Create a 'data' folder if it doesn't exist
+# Create a 'data' folder if it doesn't exist (Persistent Storage)
 DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -99,7 +99,16 @@ def init_db():
     conn.commit()
     conn.close()
 
-# API Endpoints
+# --- PWA ROUTES (NEW) ---
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory(STATIC_DIR, 'manifest.json', mimetype='application/json')
+
+@app.route('/service-worker.js')
+def serve_worker():
+    return send_from_directory(STATIC_DIR, 'service-worker.js', mimetype='application/javascript')
+
+# --- MAIN ROUTES ---
 
 @app.route('/')
 def serve_admin_portal():
@@ -108,12 +117,13 @@ def serve_admin_portal():
 
 @app.route('/exam')
 def serve_student_client():
-    """Serves the student exam client page."""
+    """Serves the student exam client page (Short Link)."""
     return send_from_directory(STATIC_DIR, 'student_exam_client.html')
+
+# --- API ENDPOINTS ---
 
 @app.route('/api/register/teacher', methods=['POST'])
 def register_teacher():
-    """Registers a new teacher."""
     data = request.json
     teacher_id = data.get('teacher_id')
     password = data.get('password')
@@ -139,7 +149,6 @@ def register_teacher():
 
 @app.route('/api/login/teacher', methods=['POST'])
 def login_teacher():
-    """Authenticates a teacher."""
     data = request.json
     teacher_id = data.get('teacher_id')
     password = data.get('password')
@@ -162,7 +171,6 @@ def login_teacher():
     
 @app.route('/api/students/bulk-upload-csv', methods=['POST'])
 def bulk_upload_students():
-    """Uploads a list of students from a CSV file."""
     data = request.json
     teacher_id = data.get('teacher_id')
     students_list = data.get('students')
@@ -186,7 +194,6 @@ def bulk_upload_students():
 
 @app.route('/api/student/create', methods=['POST'])
 def create_single_student():
-    """Creates a single student entry."""
     data = request.json
     teacher_id = data.get('teacher_id')
     student_id = data.get('student_id')
@@ -211,7 +218,6 @@ def create_single_student():
 
 @app.route('/api/student/delete', methods=['DELETE'])
 def delete_student():
-    """Deletes a student entry."""
     data = request.json
     teacher_id = data.get('teacher_id')
     student_id = data.get('student_id')
@@ -231,7 +237,6 @@ def delete_student():
 
 @app.route('/api/student/update', methods=['PUT'])
 def update_student():
-    """Updates a student's ID and name."""
     data = request.json
     teacher_id = data.get('teacher_id')
     old_student_id = data.get('old_student_id')
@@ -257,7 +262,6 @@ def update_student():
 
 @app.route('/api/students/<teacher_id>', methods=['GET'])
 def get_students_by_teacher(teacher_id):
-    """Retrieves all students for a specific teacher."""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('SELECT student_id, student_name FROM students WHERE teacher_id = ?', (teacher_id,))
@@ -265,29 +269,8 @@ def get_students_by_teacher(teacher_id):
     conn.close()
     return jsonify([dict(row) for row in students]), 200
 
-@app.route('/api/students/by-id', methods=['POST'])
-def get_student_by_id():
-    """Retrieves a student's name by their ID."""
-    data = request.json
-    student_id = data.get('student_id')
-    if not student_id:
-        return jsonify({'message': 'Student ID is required'}), 400
-
-    conn = get_db_connection()
-    try:
-        c = conn.cursor()
-        c.execute('SELECT student_name, teacher_id FROM students WHERE student_id = ?', (student_id,))
-        student = c.fetchone()
-        if student:
-            return jsonify({'student_name': student['student_name'], 'teacher_id': student['teacher_id']}), 200
-        else:
-            return jsonify({'message': 'Student ID not found'}), 404
-    finally:
-        conn.close()
-
 @app.route('/api/questions/bulk-upload-csv', methods=['POST'])
 def bulk_upload_questions():
-    """Bulk uploads questions from a CSV format."""
     data = request.json
     teacher_id = data.get('teacher_id')
     exam_id = data.get('exam_id')
@@ -328,7 +311,6 @@ def bulk_upload_questions():
 
 @app.route('/api/questions/single-upload', methods=['POST'])
 def single_upload_question():
-    """Saves or updates a single question."""
     data = request.json
     teacher_id = data.get('teacher_id')
     exam_id = data.get('exam_id')
@@ -350,7 +332,6 @@ def single_upload_question():
         if not exam_settings:
             return jsonify({'message': 'Exam settings not found. Please save exam settings first.'}), 404
 
-        # If it's an update and the question text has changed, delete the old one first
         if original_question_text and original_question_text != question_text:
             c.execute('DELETE FROM questions WHERE teacher_id = ? AND exam_id = ? AND question_text = ?', (teacher_id, exam_id, original_question_text))
             
@@ -365,10 +346,8 @@ def single_upload_question():
     finally:
         conn.close()
 
-
 @app.route('/api/exams/settings', methods=['POST'])
 def save_exam_settings():
-    """Saves exam metadata."""
     data = request.json
     teacher_id = data.get('teacher_id')
     exam_id = data.get('exam_id')
@@ -405,10 +384,8 @@ def save_exam_settings():
     finally:
         conn.close()
 
-
 @app.route('/api/exam/start', methods=['POST'])
 def check_exam_eligibility():
-    """Checks if a student is eligible to take an exam."""
     data = request.json
     student_id = data.get('student_id')
     exam_id = data.get('exam_id')
@@ -416,7 +393,6 @@ def check_exam_eligibility():
     conn = get_db_connection()
     try:
         c = conn.cursor()
-        
         c.execute('SELECT teacher_id FROM questions WHERE exam_id = ? LIMIT 1', (exam_id,))
         exam_teacher = c.fetchone()
         if not exam_teacher:
@@ -436,7 +412,6 @@ def check_exam_eligibility():
             return jsonify({'message': 'Could not retrieve exam settings.'}), 404
 
         allowed_attempts = exam_settings['allowed_attempts']
-        
         c.execute('SELECT COUNT(*) as num_attempts FROM results WHERE student_id = ? AND exam_id = ?', (student_id, exam_id))
         attempts_taken = c.fetchone()['num_attempts']
         
@@ -492,7 +467,6 @@ def check_exam_eligibility():
 
 @app.route('/api/save-progress', methods=['POST'])
 def save_progress():
-    """Saves a student's in-progress exam data."""
     data = request.json
     student_id = data.get('student_id')
     exam_id = data.get('exam_id')
@@ -520,13 +494,10 @@ def save_progress():
 
 @app.route('/api/questions/by-exam/<exam_id>', methods=['GET'])
 def get_questions_by_exam(exam_id):
-    """Retrieves all questions for a specific exam."""
     conn = get_db_connection()
     c = conn.cursor()
-    
     c.execute('SELECT question_text, correct_option, options, image_url FROM questions WHERE exam_id = ? AND question_text != "placeholder"', (exam_id,))
     questions = c.fetchall()
-    
     conn.close()
     
     questions_list = []
@@ -542,7 +513,6 @@ def get_questions_by_exam(exam_id):
 
 @app.route('/api/exams/by-teacher/<teacher_id>', methods=['GET'])
 def get_exams_by_teacher(teacher_id):
-    """Retrieves exams managed by a specific teacher."""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('SELECT DISTINCT exam_id, exam_title FROM questions WHERE teacher_id = ?', (teacher_id,))
@@ -552,7 +522,6 @@ def get_exams_by_teacher(teacher_id):
 
 @app.route('/api/submit/exam', methods=['POST'])
 def submit_exam():
-    """Submits a student's exam answers, calculates score, and generates an analysis report."""
     data = request.json
     exam_id = data.get('exam_id')
     student_id = data.get('student_id')
@@ -565,12 +534,10 @@ def submit_exam():
     
     try:
         all_questions = c.execute('SELECT question_text, correct_option, options FROM questions WHERE exam_id = ? AND question_text != "placeholder"', (exam_id,)).fetchall()
-        
         if not all_questions:
             return jsonify({'message': 'Could not find questions for this exam to calculate score.'}), 500
 
         correct_answers_map = {row['question_text']: row['correct_option'] for row in all_questions}
-        
         score = 0
         analysis_report = []
 
@@ -592,7 +559,6 @@ def submit_exam():
                   (result_id, exam_id, student_id, student_name, teacher_id, score, json.dumps(answers)))
         
         c.execute('DELETE FROM in_progress_exams WHERE student_id = ? AND exam_id = ?', (student_id, exam_id))
-        
         conn.commit()
         
         return jsonify({
@@ -607,7 +573,6 @@ def submit_exam():
 
 @app.route('/api/results', methods=['GET'])
 def get_all_results():
-    """Retrieves all exam results."""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM results')
@@ -617,7 +582,6 @@ def get_all_results():
 
 @app.route('/api/all-questions', methods=['GET'])
 def get_all_questions():
-    """Retrieves all questions from the database."""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM questions')
@@ -645,18 +609,12 @@ def delete_question():
             return jsonify({'message': 'Question not found or you are not authorized to delete.'}), 404
     finally:
         conn.close()
+
+# --- FORCE DB INIT ON STARTUP ---
 init_db()
+
 if __name__ == '__main__':
-    if not os.path.exists(DATABASE_PATH):
-        print("Database not found. Initializing a new database...")
-        init_db()
-        print("Database initialized successfully.")
-    else:
-        init_db()
-        print("Database found. Running server.")
-    
     if not os.path.exists(STATIC_DIR):
         os.makedirs(STATIC_DIR)
-        
     print(f"Server running at http://0.0.0.0:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
