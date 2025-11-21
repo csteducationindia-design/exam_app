@@ -106,7 +106,7 @@ def serve_admin_portal():
     """Serves the main Admin/Teacher portal page."""
     return send_from_directory(STATIC_DIR, 'admin_teacher_portal.html')
 
-@app.route('/static/student_exam_client.html')
+@app.route('/exam')
 def serve_student_client():
     """Serves the student exam client page."""
     return send_from_directory(STATIC_DIR, 'student_exam_client.html')
