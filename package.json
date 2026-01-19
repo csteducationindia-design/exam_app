@@ -1,0 +1,24 @@
+{
+  "name": "cstexam",
+  "version": "1.0.0",
+  "description": "",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tailwindcss -i ./input.css -o ./static/css/tailwind.css --minify"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csteducationindia-design/cstexam.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/csteducationindia-design/cstexam/issues"
+  },
+  "homepage": "https://github.com/csteducationindia-design/cstexam#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}
